@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Flashcard Mind Map</title>
+
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+margin:0;
+display:flex;
+height:100vh;
+transition:0.3s;
+}
+
+.dark{
+background:#1e1e1e;
+color:white;
+}
+
+.sidebar{
+width:300px;
+background:#f4f4f4;
+padding:15px;
+overflow:auto;
+border-right:1px solid #ccc;
+transition:0.3s;
+}
+
+.dark .sidebar{
+background:#2a2a2a;
+}
+
+.main{
+flex:1;
+display:flex;
+flex-direction:column;
+}
+
+#network{
+flex:1;
+border-top:1px solid #ccc;
+}
+
+input,textarea,select,button{
+width:100%;
+margin:5px 0;
+padding:6px;
+}
+
+.flashcard{
+border-radius:8px;
+padding:10px;
+margin:6px 0;
+color:black;
+font-weight:500;
+}
+
+.dark .flashcard{
+color:black;
+}
+
+.topbar{
+display:flex;
+gap:10px;
+margin-bottom:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+
+<h2>Flashcards</h2>
+
+<div class="topbar">
+<button onclick="toggleDark()">🌙 Dark Mode</button>
+</div>
+
+<select id="groupSelect"></select>
+
+<input id="groupName" placeholder="New Group Name">
+<button onclick="addGroup()">Add Group</button>
+
+<hr>
+
+<input id="question" placeholder="Front (Question)">
+<textarea id="answer" placeholder="Back (Answer)"></textarea>
+
+<label>Card Color</label>
+<input type="color" id="colorPicker" value="#ffe082">
+
+<button onclick="addCard()">Add Flashcard</button>
+
+<div id="cards"></div>
+
+</div>
+
+<div class="main">
+
+<h2 style="margin:10px">Mind Map</h2>
+
+<div id="network"></div>
+
+</div>
+
+<script>
+
+let data = JSON.parse(localStorage.getItem("flashData")) || {
+groups:{},
+dark:false
+}
+
+function save(){
+localStorage.setItem("flashData",JSON.stringify(data))
+}
+
+function toggleDark(){
+
+data.dark=!data.dark
+
+if(data.dark)
+document.body.classList.add("dark")
+else
+document.body.classList.remove("dark")
+
+save()
+}
+
+if(data.dark)
+document.body.classList.add("dark")
+
+function addGroup(){
+
+let name=document.getElementById("groupName").value
+
+if(!name) return
+
+data.groups[name]=[]
+
+document.getElementById("groupName").value=""
+
+save()
+render()
+
+}
+
+function addCard(){
+
+let group=document.getElementById("groupSelect").value
+let q=document.getElementById("question").value
+let a=document.getElementById("answer").value
+let color=document.getElementById("colorPicker").value
+
+if(!q || !group) return
+
+data.groups[group].push({
+q:q,
+a:a,
+color:color
+})
+
+document.getElementById("question").value=""
+document.getElementById("answer").value=""
+
+save()
+render()
+
+}
+
+function deleteCard(group,index){
+
+data.groups[group].splice(index,1)
+
+save()
+render()
+
+}
+
+function render(){
+
+let groupSelect=document.getElementById("groupSelect")
+groupSelect.innerHTML=""
+
+for(let g in data.groups){
+
+let opt=document.createElement("option")
+opt.value=g
+opt.textContent=g
+
+groupSelect.appendChild(opt)
+
+}
+
+let cardsDiv=document.getElementById("cards")
+cardsDiv.innerHTML=""
+
+let group=groupSelect.value
+
+if(!group) return
+
+data.groups[group].forEach((c,i)=>{
+
+let div=document.createElement("div")
+
+div.className="flashcard"
+div.style.background=c.color
+
+div.innerHTML=`
+<b>${c.q}</b>
+<br>
+${c.a}
+<br>
+<button onclick="deleteCard('${group}',${i})">Delete</button>
+`
+
+cardsDiv.appendChild(div)
+
+})
+
+drawMindMap()
+
+}
+
+function drawMindMap(){
+
+let nodes=[]
+let edges=[]
+let id=1
+
+for(let g in data.groups){
+
+let groupId=id++
+
+nodes.push({
+id:groupId,
+label:g,
+shape:"box",
+color:"#81d4fa"
+})
+
+data.groups[g].forEach(c=>{
+
+let cardId=id++
+
+nodes.push({
+id:cardId,
+label:c.q,
+color:c.color
+})
+
+edges.push({
+from:groupId,
+to:cardId
+})
+
+})
+
+}
+
+let container=document.getElementById("network")
+
+new vis.Network(container,{
+nodes:new vis.DataSet(nodes),
+edges:new vis.DataSet(edges)
+},{
+layout:{improvedLayout:true},
+physics:{enabled:true}
+})
+
+}
+
+render()
+
+</script>
+
+</body>
+</html>
